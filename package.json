@@ -1,0 +1,53 @@
+{
+  "name": "metrics-engine",
+  "version": "1.0.0",
+  "description": "Economic metrics computation engine for Argentina's time-series data",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup src/index.ts src/interfaces/cli/*.ts src/infrastructure/db/migrate.ts src/application/usecases/*.ts src/domain/services/*.ts src/infrastructure/db/sourcePool.ts src/infrastructure/db/targetPool.ts src/infrastructure/db/seriesRepo.source.ts src/infrastructure/db/metricsRepo.target.ts --format esm --dts",
+    "start": "node dist/index.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{ts,js,json}\" \"*.{ts,js,json,cjs,yml,yaml}\" \"eslint.config.js\" \"prettier.config.cjs\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json}\" \"*.{ts,js,json,cjs,yml,yaml}\" \"eslint.config.js\" \"prettier.config.cjs\"",
+    "typecheck": "tsc --noEmit",
+    "migrate": "tsx src/infrastructure/db/migrate.ts",
+    "metrics:recompute": "tsx src/interfaces/cli/recompute.ts",
+    "metrics:today": "tsx src/interfaces/cli/today.ts"
+  },
+  "keywords": [
+    "metrics",
+    "economics",
+    "argentina",
+    "time-series",
+    "financial-data"
+  ],
+  "author": "Franco",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "pg": "^8.16.3",
+    "pino": "^8.21.0",
+    "pino-pretty": "^11.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "prettier": "^3.4.2",
+    "ts-jest": "^29.2.5",
+    "tsup": "^8.5.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
