@@ -68,6 +68,67 @@ pnpm format           # Format code with Prettier
 
 ## 📚 Documentation
 
+## HTTP API
+
+### API Documentation
+Interactive API documentation is available at:
+- **Swagger UI**: http://localhost:3000/api/docs
+
+### Health Check
+```bash
+GET /api/health
+```
+
+### Get Historical Metric Values
+```bash
+GET /api/v1/metrics/{metricId}?from=2025-01-01&to=2025-01-31&limit=100
+```
+
+**Example:**
+```bash
+curl "http://localhost:3000/api/v1/metrics/ratio.reserves_to_base?from=2025-01-01&to=2025-01-31&limit=50"
+```
+
+**Response:**
+```json
+{
+  "metric_id": "ratio.reserves_to_base",
+  "points": [
+    { "ts": "2025-01-31", "value": 0.0012 },
+    { "ts": "2025-01-30", "value": 0.0011 }
+  ],
+  "count": 2
+}
+```
+
+### Get Latest Values for Multiple Metrics
+```bash
+GET /api/v1/metrics/summary?ids=ratio.reserves_to_base,delta.reserves_7d,delta.base_30d
+```
+
+**Example:**
+```bash
+curl "http://localhost:3000/api/v1/metrics/summary?ids=ratio.reserves_to_base,delta.reserves_7d"
+```
+
+**Response:**
+```json
+{
+  "items": [
+    { "metric_id": "ratio.reserves_to_base", "ts": "2025-01-31", "value": 0.0012 },
+    { "metric_id": "delta.reserves_7d", "ts": "2025-01-31", "value": 0.05 }
+  ],
+  "missing": []
+}
+```
+
+### Input Validation
+All API endpoints include comprehensive input validation using Zod:
+- **Date format**: YYYY-MM-DD for `from` and `to` parameters
+- **Limit range**: 1-5000 for `limit` parameter
+- **Required fields**: `metricId` and `ids` parameters are required
+- **Error responses**: Detailed validation error messages with field-specific details
+
 ### Core Documentation
 
 - **[Overview](docs/overview.md)** - Platform overview, data flow, and architecture

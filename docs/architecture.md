@@ -24,6 +24,8 @@ src/
 └── interfaces/      # External interfaces
     ├── cli/         # Command-line interfaces
     └── rest/        # REST API endpoints
+        ├── health/  # Health check feature
+        └── metrics/ # Metrics API feature
 ```
 
 ## Key Components
@@ -42,6 +44,136 @@ Handle external API communication with retry logic and error handling.
 
 ### 5. Scheduler
 Manages automated data updates with configurable cron jobs.
+
+### 6. REST API Layer
+Handles HTTP requests with validation, business logic, and data access.
+
+## REST API Architecture
+
+### Request Flow
+```
+HTTP Request → Router → Controller → Service → Repository → Database
+                ↓         ↓          ↓         ↓
+            Validation  Business   Data     Persistence
+                       Logic     Access
+```
+
+### Component Responsibilities
+
+#### Router (`{feature}.routes.ts`)
+- Defines API endpoints and HTTP methods
+- Injects dependencies (Repository → Service → Controller)
+- Maps routes to controller methods
+
+#### Controller (`{feature}.controller.ts`)
+- Handles HTTP request/response
+- Validates input using Zod schemas
+- Calls service layer
+- Formats and returns HTTP responses
+- Handles errors and status codes
+
+#### Service (`{feature}.service.ts`)
+- Contains business logic
+- Orchestrates multiple operations
+- Calls repository layer
+- Handles business rules and validation
+
+#### Repository (`{feature}Repo.ts`)
+- Handles data access and persistence
+- Abstracts database operations
+- Implements data access patterns
+- Manages database connections
+
+### Validation Flow
+```
+Request → Zod Schema → Validation → Controller → Service → Repository
+```
+
+### Error Handling Flow
+```
+Error → Controller → HTTP Status → Structured Response
+```
+
+## REST API Implementation Examples
+
+### Feature Structure
+```
+src/interfaces/rest/{feature}/
+├── {feature}.controller.ts    # HTTP request handling
+├── {feature}.service.ts       # Business logic
+├── {feature}.routes.ts       # Route definitions
+└── {feature}.validation.ts    # Zod schemas
+```
+
+### Example: Metrics API
+```typescript
+// metrics.routes.ts
+const metricsRoutes = Router();
+const metricsRepository = new MetricsRepository();
+const metricsService = new MetricsService(metricsRepository);
+const metricsController = new MetricsController(metricsService);
+
+metricsRoutes.get('/v1/metrics/:metricId', (req, res) => 
+  metricsController.getMetricPoints(req, res)
+);
+```
+
+```typescript
+// metrics.controller.ts
+export class MetricsController {
+  constructor(private metricsService: MetricsService) {}
+
+  async getMetricPoints(req: Request, res: Response): Promise<void> {
+    try {
+      const validatedData = GetMetricPointsSchema.parse({
+        metricId: req.params.metricId,
+        from: req.query.from,
+        to: req.query.to,
+        limit: req.query.limit,
+      });
+
+      const points = await this.metricsService.getPoints(validatedData);
+      res.json({ metric_id: validatedData.metricId, points, count: points.length });
+    } catch (error) {
+      // Handle validation and business errors
+    }
+  }
+}
+```
+
+```typescript
+// metrics.service.ts
+export class MetricsService {
+  constructor(private metricsRepository: MetricsRepository) {}
+
+  async getPoints(request: GetPointsRequest) {
+    const exists = await this.metricsRepository.metricExists(request.metricId);
+    if (!exists) {
+      throw new Error(`Metric ${request.metricId} not found`);
+    }
+
+    return await this.metricsRepository.getMetricPoints(
+      request.metricId,
+      request.from,
+      request.to,
+      request.limit || 500
+    );
+  }
+}
+```
+
+### Validation Schema Example
+```typescript
+// metrics.validation.ts
+export const GetMetricPointsSchema = z.object({
+  metricId: z.string().min(1, 'Metric ID is required'),
+  from: z.string().optional().refine(
+    (val) => !val || /^\d{4}-\d{2}-\d{2}$/.test(val),
+    'From date must be in YYYY-MM-DD format'
+  ),
+  limit: z.coerce.number().int().min(1).max(5000).optional().default(500),
+});
+```
 
 ## Data Flow
 

@@ -83,6 +83,16 @@ src/
 │   ├── providers/    # Data providers
 │   └── db/          # Database
 └── interfaces/       # Entry points (CLI, REST)
+    ├── cli/          # CLI commands
+    ├── rest/         # HTTP API endpoints
+    │   ├── health/   # Health feature
+    │   │   ├── health.controller.ts
+    │   │   ├── health.service.ts
+    │   │   └── health.routes.ts
+    │   └── metrics/  # Metrics feature
+    │       ├── metrics.controller.ts
+    │       ├── metrics.service.ts
+    │       └── metrics.routes.ts
 ```
 
 ### **Provider Implementation**
@@ -107,6 +117,83 @@ export class ExampleProvider implements SeriesProvider {
     // Normalization using DateService
   }
 }
+```
+
+### **HTTP Server Implementation**
+```typescript
+// Server setup with Express
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import { logger } from '@/infrastructure/log/logger.js';
+
+const app = express();
+
+// Middleware setup
+app.use(helmet());
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Routes
+app.use('/api/health', healthRoutes);
+app.use('/api/metrics', metricsRoutes);
+
+// Error handling middleware
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  logger.error({
+    event: 'SERVER.ERROR',
+    msg: 'Unhandled server error',
+    err,
+    data: { path: req.path, method: req.method }
+  });
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+export { app };
+```
+
+### **Feature Organization**
+Each feature follows the same pattern:
+- **Controller**: Handles HTTP requests/responses, validation, error handling
+- **Service**: Contains business logic and orchestration
+- **Routes**: Defines API endpoints and dependency injection
+- **Repository**: Handles data access and persistence (when needed)
+
+### **REST API Flow**
+The standard flow for REST endpoints follows this pattern:
+1. **Router** → Defines routes and injects dependencies
+2. **Controller** → Validates input, calls service, formats response
+3. **Service** → Contains business logic, calls repository
+4. **Repository** → Handles data access (optional, can be direct DB access)
+
+```typescript
+// health.controller.ts
+export class HealthController {
+  constructor(private healthService: HealthService) {}
+
+  async getHealth(req: Request, res: Response): Promise<void> {
+    try {
+      const health = await this.healthService.getHealthStatus();
+      res.json(health);
+    } catch (error) {
+      res.status(500).json({ error: 'Health check failed' });
+    }
+  }
+}
+
+// health.service.ts
+export class HealthService {
+  async getHealthStatus(): Promise<HealthStatus> {
+    // Business logic here
+  }
+}
+
+// health.routes.ts
+export const healthRoutes = Router();
+const healthController = new HealthController(new HealthService());
+
+healthRoutes.get('/', (req, res) => healthController.getHealth(req, res));
 ```
 
 ### **HTTP Client Implementation**
@@ -253,6 +340,95 @@ export class ExampleClient extends BaseHttpClient {
 - Don't catch errors just to re-throw them
 - Provide meaningful error messages
 - Handle errors at the right level of abstraction
+
+### **Code Comments**
+- **NO COMMENTS**: Do not add comments in the code
+- Code should be self-explanatory through clear naming and structure
+- If code needs explanation, refactor it to be more readable
+- Use descriptive variable and function names instead of comments
+
+### **Input Validation**
+- Use **Zod** for all input validation in REST endpoints
+- Create validation schemas in `{feature}.validation.ts`
+- Validate in controllers before calling services
+- Return structured error responses with field-specific details
+
+```typescript
+// metrics.validation.ts
+export const GetMetricPointsSchema = z.object({
+  metricId: z.string().min(1, 'Metric ID is required'),
+  from: z.string().optional().refine(
+    (val) => !val || /^\d{4}-\d{2}-\d{2}$/.test(val),
+    'From date must be in YYYY-MM-DD format'
+  ),
+  limit: z.coerce.number().int().min(1).max(5000).optional().default(500),
+});
+
+// metrics.controller.ts
+const validatedData = GetMetricPointsSchema.parse({
+  metricId: req.params.metricId,
+  from: req.query.from,
+  to: req.query.to,
+  limit: req.query.limit,
+});
+```
+
+### **API Documentation**
+- Use **OpenAPI/Swagger** for all REST endpoints
+- Create comprehensive schemas in `swagger.config.ts`
+- Include examples for all request/response types
+- Document error codes and validation rules
+- Make documentation available at `/api/docs`
+
+```typescript
+// swagger.config.ts
+const swaggerDefinition: SwaggerDefinition = {
+  openapi: '3.0.0',
+  info: {
+    title: 'Metrics Engine API',
+    version: '1.0.0',
+    description: 'API for accessing computed financial metrics',
+  },
+  components: {
+    schemas: {
+      MetricPoint: {
+        type: 'object',
+        properties: {
+          ts: { type: 'string', format: 'date', example: '2025-01-31' },
+          value: { type: 'number', example: 0.0012 },
+        },
+        required: ['ts', 'value'],
+      },
+    },
+  },
+  paths: {
+    '/api/v1/metrics/{metricId}': {
+      get: {
+        summary: 'Get historical metric values',
+        parameters: [
+          {
+            name: 'metricId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'ratio.reserves_to_base',
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Metric points retrieved successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/MetricPointsResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+```
 
 ## Testing Standards
 

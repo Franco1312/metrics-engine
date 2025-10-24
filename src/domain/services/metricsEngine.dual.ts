@@ -89,7 +89,6 @@ export class DualDatabaseMetricsEngine {
   private computeReservesToBase(inputs: MetricInputs): MetricResult[] {
     const results: MetricResult[] = [];
 
-    // Create a map of dates for efficient lookup (normalize to date string)
     const baseMap = new Map(
       inputs.base.map(point => {
         const dateStr =

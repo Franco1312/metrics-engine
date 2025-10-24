@@ -24,3 +24,9 @@ export const CLI = {
   TODAY: 'CLI.TODAY',
   ERROR: 'CLI.ERROR',
 } as const;
+
+export const SERVER = {
+  INIT: 'SERVER.INIT',
+  FINISHED: 'SERVER.FINISHED',
+  ERROR: 'SERVER.ERROR',
+} as const;
