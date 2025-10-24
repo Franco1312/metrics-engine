@@ -30,40 +30,85 @@ The **Metrics Engine** is a specialized service that calculates derived economic
 ### Prerequisites
 
 - Node.js 20+
-- PostgreSQL with existing `series` and `series_points` tables
-- Access to the same database as the ingestor service
+- Docker and Docker Compose
+- Access to INGESTOR database (port 5433)
+- PostgreSQL for METRICS database (port 5434)
 
-### Setup
+### Docker Setup (Recommended)
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd metrics-engine
+
+# Copy environment configuration
+cp docker.env.example docker.env
+
+# Edit docker.env with your database credentials
+# SOURCE_DB_URL=postgresql://user:pass@ingestor_postgres_1:5432/ingestor
+# TARGET_DB_URL=postgresql://metrics_user:metrics_password@metrics-postgres:5432/metrics_engine
+
+# Start all services
+docker-compose up -d
+
+# Check service health
+curl http://localhost:3000/api/health
+```
+
+### Local Development Setup
 
 ```bash
 # Install dependencies
 pnpm install
 
+# Copy environment configuration
+cp docker.env.example .env
+
+# Edit .env with your local database URLs
+# SOURCE_DB_URL=postgresql://user:pass@localhost:5433/ingestor
+# TARGET_DB_URL=postgresql://metrics_user:metrics_password@localhost:5434/metrics_engine
+
 # Run database migrations
 pnpm migrate
 
-# Backfill historical metrics (last 180 days)
-pnpm metrics:backfill
+# Start development server
+pnpm dev
+```
 
-# Update recent metrics (last 30 days)
-pnpm metrics:update
+### Environment Configuration
 
-# Start the service
-pnpm start
+The service requires two database connections:
+
+- **SOURCE_DB_URL**: Read-only connection to INGESTOR database (contains `series` and `series_points`)
+- **TARGET_DB_URL**: Read-write connection to METRICS database (contains `metrics` and `metrics_points`)
+
+Copy `docker.env.example` to `docker.env` (for Docker) or `.env` (for local development) and configure:
+
+```bash
+# Required variables
+NODE_ENV=production
+SOURCE_DB_URL=postgresql://user:pass@ingestor_postgres_1:5432/ingestor
+TARGET_DB_URL=postgresql://metrics_user:metrics_password@metrics-postgres:5432/metrics_engine
+
+# Optional variables
+APP_TIMEZONE=America/Argentina/Buenos_Aires
+LOG_LEVEL=info
+HTTP_PORT=3000
+ENABLE_SCHEDULER=false
 ```
 
 ### Available Scripts
 
 ```bash
-pnpm dev              # Start development server
-pnpm build            # Build for production
-pnpm start            # Start production server
-pnpm migrate          # Run database migrations
-pnpm metrics:backfill # Backfill historical metrics
-pnpm metrics:update   # Update recent metrics
-pnpm test             # Run tests
-pnpm lint             # Run ESLint
-pnpm format           # Format code with Prettier
+pnpm dev                    # Start development server
+pnpm build                 # Build for production
+pnpm start                 # Start production server
+pnpm migrate               # Run database migrations
+pnpm metrics:recompute    # Recompute metrics for date range
+pnpm metrics:today         # Compute metrics for today
+pnpm lint                  # Run ESLint
+pnpm format                # Format code with Prettier
+pnpm typecheck             # Run TypeScript type checking
 ```
 
 ## 📚 Documentation
@@ -177,6 +222,22 @@ pnpm metrics:update
 
 ## 🚢 Deployment
 
+### Docker Deployment (Recommended)
+
+```bash
+# Start all services with Docker Compose
+docker-compose up -d
+
+# Check service health
+curl http://localhost:3000/api/health
+
+# View logs
+docker-compose logs -f metrics-engine-app
+
+# Stop services
+docker-compose down
+```
+
 ### Production Deployment
 
 ```bash
@@ -191,14 +252,17 @@ pnpm start
 
 ```bash
 # Check service health
-curl http://localhost:3000/health
+curl http://localhost:3000/api/health
+
+# Check API documentation
+open http://localhost:3000/api/docs
 ```
 
 ### Daily Automation
 
 ```bash
 # Add to crontab for daily updates at 08:20 ART
-20 8 * * * cd /path/to/metrics-engine && pnpm metrics:update
+20 8 * * * cd /path/to/metrics-engine && pnpm metrics:recompute -- --days 30
 ```
 
 ## 🤝 Contributing
