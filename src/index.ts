@@ -61,13 +61,17 @@ function createExpressApp(): express.Application {
   return app;
 }
 
-function handleServerError(err: Error, req: express.Request, res: express.Response): void {
+function handleServerError(err: Error, req: express.Request, res: express.Response, next: express.NextFunction): void {
   logger.error({
     event: SERVER.ERROR,
     msg: 'Unhandled server error',
     err,
     data: { path: req.path, method: req.method },
   });
+
+  if (res.headersSent) {
+    return next(err);
+  }
 
   res.status(500).json({
     error: 'Internal server error',

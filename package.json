@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsup src/index.ts src/interfaces/cli/*.ts src/infrastructure/db/migrate.ts src/application/usecases/*.ts src/domain/services/*.ts src/infrastructure/db/sourcePool.ts src/infrastructure/db/targetPool.ts src/infrastructure/db/seriesRepo.source.ts src/infrastructure/db/metricsRepo.target.ts --format esm --dts",
+    "build": "tsup src/**/*.ts --format esm --dts",
     "start": "node dist/index.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
