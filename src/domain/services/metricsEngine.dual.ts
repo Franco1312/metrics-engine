@@ -10,6 +10,7 @@ export interface MetricInputs {
   base: SeriesPoint[];
   mep?: SeriesPoint[] | undefined;
   tcOficialPref?: SeriesPoint[] | undefined;
+  blue?: SeriesPoint[] | undefined;
   leliq?: SeriesPoint[] | undefined;
   pasesPasivos?: SeriesPoint[] | undefined;
   pasesActivos?: SeriesPoint[] | undefined;
@@ -71,11 +72,12 @@ export class DualDatabaseMetricsEngine {
   }
 
   private async loadInputs(fromDate: string, toDate: string): Promise<MetricInputs> {
-    const [reservas, base, mep, tcOficialPref, leliq, pasesPasivos, pasesActivos] = await Promise.all([
+    const [reservas, base, mep, tcOficialPref, blue, leliq, pasesPasivos, pasesActivos] = await Promise.all([
       this.sourceRepo.getSeriesPoints('1', fromDate, toDate),
       this.sourceRepo.getSeriesPoints('15', fromDate, toDate),
       this.sourceRepo.getSeriesPoints('dolarapi.mep_ars', fromDate, toDate),
       this.sourceRepo.getSeriesPoints('bcra.usd_official_ars', fromDate, toDate),
+      this.sourceRepo.getSeriesPoints('dolarapi.blue_ars', fromDate, toDate),
       this.sourceRepo.getSeriesPoints('bcra.leliq_total_ars', fromDate, toDate),
       this.sourceRepo.getSeriesPoints('bcra.pases_pasivos_total_ars', fromDate, toDate),
       this.sourceRepo.getSeriesPoints('bcra.pases_activos_total_ars', fromDate, toDate),
@@ -86,6 +88,7 @@ export class DualDatabaseMetricsEngine {
       base,
       mep: mep.length > 0 ? mep : undefined,
       tcOficialPref: tcOficialPref.length > 0 ? tcOficialPref : undefined,
+      blue: blue.length > 0 ? blue : undefined,
       leliq: leliq.length > 0 ? leliq : undefined,
       pasesPasivos: pasesPasivos.length > 0 ? pasesPasivos : undefined,
       pasesActivos: pasesActivos.length > 0 ? pasesActivos : undefined,
@@ -294,7 +297,8 @@ export class DualDatabaseMetricsEngine {
     return results;
   }
 
-  private selectOfficialFx(ts: string, inputs: MetricInputs): { value: number; source: 'bcra' | 'datos' } | null {
+  private selectOfficialFx(ts: string, inputs: MetricInputs): { value: number; source: 'bcra' | 'mep' | 'blue' | 'fallback' } | null {
+    // 1. PRIORIDAD: Datos oficiales del BCRA
     if (inputs.tcOficialPref) {
       const oficialPoint = inputs.tcOficialPref.find(point => point.ts === ts);
       if (oficialPoint) {
@@ -302,10 +306,19 @@ export class DualDatabaseMetricsEngine {
       }
     }
 
+    // 2. FALLBACK: MEP
     if (inputs.mep) {
       const mepPoint = inputs.mep.find(point => point.ts === ts);
       if (mepPoint) {
-        return { value: mepPoint.value, source: 'datos' };
+        return { value: mepPoint.value, source: 'mep' };
+      }
+    }
+
+    // 3. FALLBACK: Blue
+    if (inputs.blue) {
+      const bluePoint = inputs.blue.find(point => point.ts === ts);
+      if (bluePoint) {
+        return { value: bluePoint.value, source: 'blue' };
       }
     }
 

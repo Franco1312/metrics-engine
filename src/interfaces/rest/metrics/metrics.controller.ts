@@ -23,6 +23,7 @@ export class MetricsController {
         points: points.map(point => ({
           ts: point.ts,
           value: point.value,
+          metadata: point.metadata,
         })),
         count: points.length,
       });

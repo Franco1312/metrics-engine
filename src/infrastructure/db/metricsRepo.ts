@@ -15,6 +15,7 @@ export interface MetricSummary {
   metric_id: string;
   ts: string;
   value: number;
+  metadata?: Record<string, unknown>;
 }
 
 export class MetricsRepository {
@@ -77,7 +78,7 @@ export class MetricsRepository {
 
     const placeholders = metricIds.map((_, index) => `$${index + 1}`).join(',');
     const query = `
-      SELECT DISTINCT ON (metric_id) metric_id, ts, value
+      SELECT DISTINCT ON (metric_id) metric_id, ts, value, metadata
       FROM metrics.metrics_points
       WHERE metric_id IN (${placeholders})
       ORDER BY metric_id, ts DESC
