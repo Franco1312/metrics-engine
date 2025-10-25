@@ -387,33 +387,4 @@ export class DualDatabaseMetricsEngine {
 
     return results;
   }
-
-  private computeBrechaMepOficial(inputs: MetricInputs): MetricResult[] {
-    const results: MetricResult[] = [];
-
-    if (!inputs.mep || !inputs.tcOficialPref) {
-      return results;
-    }
-
-    const mepMap = new Map(inputs.mep.map(point => [point.ts, point.value]));
-    const oficialMap = new Map(inputs.tcOficialPref.map(point => [point.ts, point.value]));
-
-    for (const [date, mepValue] of mepMap) {
-      const oficialValue = oficialMap.get(date);
-      if (oficialValue && oficialValue !== 0) {
-        const brecha = (mepValue - oficialValue) / oficialValue;
-        results.push({
-          metricId: 'brecha.mep_oficial',
-          ts: date,
-          value: brecha,
-          metadata: {
-            mep: mepValue,
-            oficial: oficialValue,
-          },
-        });
-      }
-    }
-
-    return results;
-  }
 }
