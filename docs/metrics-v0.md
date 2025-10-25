@@ -22,15 +22,23 @@ series + series_points (lectura) → Metrics Engine → metrics_points (escritur
 
 #### `fx.brecha_mep`
 - **Fórmula**: `(MEP - OFICIAL) / OFICIAL`
-- **Unidad**: Ratio (adimensional)
-- **Interpretación**: Brecha entre dólar MEP y oficial como porcentaje
-- **Rango esperado**: [-0.5, 5.0]
-
-#### `fx.brecha_ccl`
-- **Fórmula**: `(CCL - OFICIAL) / OFICIAL`
-- **Unidad**: Ratio (adimensional)
-- **Interpretación**: Brecha entre dólar CCL y oficial como porcentaje
-- **Rango esperado**: [-0.5, 5.0]
+- **Unidad**: Ratio (decimal)
+- **Interpretación**: Brecha entre dólar MEP y tipo oficial como porcentaje
+- **Dependencias**: 
+  - `dolarapi.mep_ars` (MEP ARS/USD)
+  - `bcra.usd_official_ars` (preferido) o `168.1_T_CAMBIOR_D_0_0_26` (fallback)
+- **Política de faltantes**: Sin forward-fill en v0
+  - Si falta MEP o OFICIAL → se omite el cálculo para esa fecha
+- **Interpretación de negocio**:
+  - **Valores positivos**: MEP > OFICIAL (brecha cambiaria)
+  - **Valores negativos**: MEP < OFICIAL (situación atípica)
+  - **Valores cercanos a 0**: MEP ≈ OFICIAL (mercado equilibrado)
+- **Ejemplo de cálculo**:
+  ```
+  MEP[2025-10-24] = 1000 ARS/USD
+  OFICIAL[2025-10-24] = 1000 ARS/USD
+  fx.brecha_mep = (1000 - 1000) / 1000 = 0.0 (0%)
+  ```
 
 ### Métricas Monetarias
 
@@ -59,179 +67,274 @@ series + series_points (lectura) → Metrics Engine → metrics_points (escritur
 - **Unidad**: Ratio (adimensional)
 - **Interpretación**: Reservas como porcentaje de la base ampliada en USD
 
-### Métricas de Flujo
+### Métricas de Ratio
 
-#### `flow.delta_reservas`
-- **Fórmula**: `RESERVAS(ts) - RESERVAS(ts-1)`
-- **Unidad**: USD
-- **Interpretación**: Cambio diario en reservas internacionales
-
-#### `flow.delta_base`
-- **Fórmula**: `BASE(ts) - BASE(ts-1)`
-- **Unidad**: ARS
-- **Interpretación**: Cambio diario en base monetaria
-
-#### `flow.delta_leliq`
-- **Fórmula**: `LELIQ(ts) - LELIQ(ts-1)`
-- **Unidad**: ARS
-- **Interpretación**: Cambio diario en Leliq
-
-#### `flow.delta_pases`
-- **Fórmula**: `(PASES_PASIVOS + PASES_ACTIVOS)ts - (...)ts-1`
-- **Unidad**: ARS
-- **Interpretación**: Cambio diario en pases
-
-### Métricas de Tendencia
-
-#### `trend.ma7_reservas`, `trend.ma30_reservas`
-- **Fórmula**: Media móvil de 7/30 días
-- **Unidad**: USD
-- **Interpretación**: Tendencia suavizada de reservas
-
-#### `trend.ma7_base`, `trend.ma30_base`
-- **Fórmula**: Media móvil de 7/30 días
-- **Unidad**: ARS
-- **Interpretación**: Tendencia suavizada de base monetaria
-
-#### `trend.ma7_tc_oficial`, `trend.ma30_tc_oficial`
-- **Fórmula**: Media móvil de 7/30 días
-- **Unidad**: ARS/USD
-- **Interpretación**: Tendencia suavizada del tipo de cambio oficial
-
-### Métricas de Riesgo
-
-#### `risk.vol_7d_mep`, `risk.vol_7d_ccl`
-- **Fórmula**: `stddev(values_7d) / mean(values_7d)`
+#### `ratio.reserves_to_base`
+- **Fórmula**: `RESERVAS / BASE`
 - **Unidad**: Ratio (adimensional)
-- **Interpretación**: Volatilidad relativa de 7 días
+- **Interpretación**: Reservas como porcentaje de la base monetaria
+- **Rango esperado**: [0.001, 0.1]
+- **Interpretación de negocio**: 
+  - **Valores altos (>0.05)**: Reservas sólidas, respaldo fuerte
+  - **Valores medios (0.01-0.05)**: Reservas moderadas, respaldo adecuado
+  - **Valores bajos (<0.01)**: Reservas bajas, respaldo débil
 
-## Política de Tipo de Cambio Oficial
+## Delta 7 días (Reservas)
 
-### Selección por Fecha
-```
-OFICIAL(ts) = TC_OFICIAL_PREF en ts (preferido)
-               else TC_OFICIAL_FBK en ts (fallback)
-               else NULL (saltar métricas dependientes)
-```
+#### `delta.reserves_7d`
+- **Fórmula**: `(RESERVAS[t] - RESERVAS[t-7]) / RESERVAS[t-7]`
+- **Unidad**: Ratio (decimal)
+- **Interpretación**: Cambio porcentual de reservas en 7 días
+- **Dependencias**: 
+  - `series_id = "1"` (RESERVAS USD, BCRA Monetarias)
+- **Política de faltantes**: Sin forward-fill en v0
+  - Si falta el punto `t-7` → se omite el cálculo para esa fecha
+  - Se registra en logs como "skipped"
+- **Interpretación de negocio**:
+  - **Valores positivos**: Aumento de reservas (favorable)
+  - **Valores negativos**: Disminución de reservas (desfavorable)
+  - **Valores cercanos a 0**: Estabilidad en reservas
+- **Ejemplo de cálculo**:
+  ```
+  RESERVAS[2025-10-22] = 45,000 USD
+  RESERVAS[2025-10-15] = 47,000 USD
+  delta.reserves_7d = (45,000 - 47,000) / 47,000 = -0.0426 (-4.26%)
+  ```
 
-### Fuentes
-1. **BCRA Cambiarias** (`bcra.usd_official_ars`) - Preferida
-2. **Datos Argentina** (`168.1_T_CAMBIOR_D_0_0_26`) - Fallback
+## Delta 30 días (Base Monetaria)
 
-## Política de Datos Faltantes
+#### `delta.base_30d`
+- **Fórmula**: `(BASE[t] - BASE[t-30]) / BASE[t-30]`
+- **Unidad**: Ratio (decimal)
+- **Interpretación**: Cambio porcentual de base monetaria en 30 días
+- **Dependencias**: 
+  - `series_id = "15"` (BASE ARS, BCRA Monetarias)
+- **Política de faltantes**: Sin forward-fill en v0
+  - Si falta el punto `t-30` → se omite el cálculo para esa fecha
+  - Se registra en logs como "skipped"
+- **Interpretación de negocio**:
+  - **Valores positivos**: Expansión monetaria (inflacionario)
+  - **Valores negativos**: Contracción monetaria (deflacionario)
+  - **Valores cercanos a 0**: Estabilidad monetaria
+- **Ejemplo de cálculo**:
+  ```
+  BASE[2025-10-22] = 5,300,000 ARS
+  BASE[2025-09-22] = 5,500,000 ARS
+  delta.base_30d = (5,300,000 - 5,500,000) / 5,500,000 = -0.0364 (-3.64%)
+  ```
 
-### Reglas
-- Si cualquier componente falta para un `ts`, **saltar** esa métrica para ese día
-- **NO** se hace forward-fill en v0
-- Para `mon.pasivos_rem_ars`: permitir suma parcial, notar componentes faltantes en `metadata.missing_components`
+## Delta 5 días (Reservas)
 
-### Componentes Requeridos
-- **Mínimo**: `RESERVAS` y `BASE` para métricas básicas
-- **FX**: `TC_OFICIAL_PREF` o `TC_OFICIAL_FBK` para métricas de brecha
-- **Pasivos**: `LELIQ`, `PASES_PASIVOS`, `PASES_ACTIVOS` para métricas ampliadas
+#### `delta.reserves_5d`
+- **Fórmula**: `(RESERVAS[t] - RESERVAS[t-5]) / RESERVAS[t-5]`
+- **Unidad**: Ratio (decimal)
+- **Interpretación**: Cambio porcentual de reservas en 5 días
+- **Dependencias**: 
+  - `series_id = "1"` (RESERVAS USD, BCRA Monetarias)
+- **Política de faltantes**: Sin forward-fill en v0
+  - Si falta el punto `t-5` → se omite el cálculo para esa fecha
+  - Se registra en logs como "skipped"
+- **Interpretación de negocio**:
+  - **Valores positivos**: Aumento de reservas (favorable)
+  - **Valores negativos**: Disminución de reservas (desfavorable)
+  - **Valores cercanos a 0**: Estabilidad en reservas
+- **Ejemplo de cálculo**:
+  ```
+  RESERVAS[2025-10-22] = 45,000 USD
+  RESERVAS[2025-10-17] = 46,200 USD
+  delta.reserves_5d = (45,000 - 46,200) / 46,200 = -0.026 (-2.6%)
+  ```
 
-## Uso del Sistema
+## Métricas Monetarias Tácticas
 
-### Comandos CLI
+#### `mon.pasivos_rem_ars`
+- **Fórmula**: `LELIQ + PASES_PASIVOS + PASES_ACTIVOS`
+- **Unidad**: ARS
+- **Interpretación**: Total de pasivos remunerados en pesos
+- **Dependencias**: 
+  - `bcra.leliq_total_ars` (LELIQ ARS)
+  - `bcra.pases_pasivos_total_ars` (PASES PASIVOS ARS)
+  - `bcra.pases_activos_total_ars` (PASES ACTIVOS ARS)
+- **Política de faltantes**: Suma componentes disponibles
+  - Si falta un componente → suma los disponibles y registra faltantes en metadata
+- **Interpretación de negocio**:
+  - **Valores altos**: Mayor presión sobre la base monetaria
+  - **Valores bajos**: Menor presión monetaria
+- **Ejemplo de cálculo**:
+  ```
+  LELIQ[2025-10-22] = 50,000,000 ARS
+  PASES_PASIVOS[2025-10-22] = 30,000,000 ARS
+  PASES_ACTIVOS[2025-10-22] = 20,000,000 ARS
+  mon.pasivos_rem_ars = 50,000,000 + 30,000,000 + 20,000,000 = 100,000,000 ARS
+  ```
 
-#### Backfill Histórico
-```bash
-pnpm metrics:backfill -- --from=2024-01-01 --to=2024-12-31
-```
-- Calcula métricas para un rango de fechas específico
-- Idempotente: re-ejecutar solo actualiza si hay cambios en inputs
+#### `mon.base_ampliada_ars`
+- **Fórmula**: `BASE + mon.pasivos_rem_ars`
+- **Unidad**: ARS
+- **Interpretación**: Base monetaria ampliada incluyendo pasivos remunerados
+- **Dependencias**: 
+  - `series_id = "15"` (BASE ARS)
+  - `mon.pasivos_rem_ars` (pasivos remunerados)
+- **Política de faltantes**: Si falta pasivos → usa solo base
+  - Registra componentes faltantes en metadata
+- **Interpretación de negocio**:
+  - **Valores altos**: Mayor liquidez en el sistema
+  - **Valores bajos**: Menor liquidez
+- **Ejemplo de cálculo**:
+  ```
+  BASE[2025-10-22] = 300,000,000 ARS
+  mon.pasivos_rem_ars[2025-10-22] = 100,000,000 ARS
+  mon.base_ampliada_ars = 300,000,000 + 100,000,000 = 400,000,000 ARS
+  ```
 
-#### Actualización Diaria
-```bash
-pnpm metrics:update
-```
-- Recalcula últimos 30 días + hoy
-- Comando para ejecución diaria automatizada
+#### `mon.respaldo_real`
+- **Fórmula**: `RESERVAS / (mon.base_ampliada_ars / OFICIAL)`
+- **Unidad**: Ratio (decimal)
+- **Interpretación**: Reservas como porcentaje de la base ampliada en USD
+- **Dependencias**: 
+  - `series_id = "1"` (RESERVAS USD)
+  - `mon.base_ampliada_ars` (base ampliada)
+  - `bcra.usd_official_ars` (preferido) o `168.1_T_CAMBIOR_D_0_0_26` (fallback)
+- **Política de faltantes**: Si falta cualquier componente → se omite
+- **Interpretación de negocio**:
+  - **Valores altos (>0.1)**: Respaldo sólido
+  - **Valores medios (0.01-0.1)**: Respaldo moderado
+  - **Valores bajos (<0.01)**: Respaldo débil
+- **Ejemplo de cálculo**:
+  ```
+  RESERVAS[2025-10-22] = 45,000 USD
+  mon.base_ampliada_ars[2025-10-22] = 400,000,000 ARS
+  OFICIAL[2025-10-22] = 1000 ARS/USD
+  mon.respaldo_real = 45,000 / (400,000,000 / 1000) = 0.1125 (11.25%)
+  ```
 
-### Orden de Ejecución Diaria
-1. **08:00** - Ingestor ejecuta `discover`, `backfill`, `update`
-2. **08:20** - Metrics Engine ejecuta `metrics:update`
-3. **08:30** - Dashboard/API consume métricas actualizadas
+## Orden de Ejecución Diario
 
-### Health Check
-```bash
-curl http://localhost:3000/health
-```
+### Cronograma de Procesamiento
+1. **08:05 ART**: Ingestor actualiza datos de `series_points`
+2. **08:15 ART**: Metrics Engine calcula métricas derivadas
+3. **08:30 ART**: Sistema de alertas procesa métricas actualizadas
 
-**Respuesta**:
+### Orden de Cálculo de Métricas
+1. **mon.pasivos_rem_ars** (dependencia base)
+2. **mon.base_ampliada_ars** (depende de pasivos)
+3. **fx.brecha_mep** (independiente)
+4. **delta.reserves_5d** (independiente)
+5. **mon.respaldo_real** (depende de base_ampliada + reservas + oficial)
+
+### Política de Recomputación
+- **Ventana de recomputación**: Últimos 60 días (cubre lag de 30 días)
+- **Idempotencia**: Re-ejecutar no duplica datos, solo actualiza si hay cambios
+- **Logs estructurados**: JSON con métricas por métrica (computed/inserted/updated/skipped)
+
+## Metadatos por Punto
+
+Cada punto de métrica incluye metadatos para auditoría:
+
+### Métricas Delta
 ```json
 {
-  "status": "healthy",
-  "timestamp": "2024-10-24T20:00:00Z",
-  "timezone": "America/Argentina/Buenos_Aires",
-  "db": true,
-  "lastMetricTs": "2024-10-24"
+  "window": "5d" | "7d" | "30d",
+  "base_ts": "YYYY-MM-DD",
+  "inputs": ["series:1","series:15"],
+  "current": 45000,
+  "previous": 47000,
+  "lag_days": 5
 }
 ```
 
-## Configuración
-
-### Variables de Entorno
-```bash
-NODE_ENV=development
-APP_TIMEZONE=America/Argentina/Buenos_Aires
-LOG_LEVEL=info
-
-# Base de datos (misma que ingestor)
-PGHOST=localhost
-PGPORT=5432
-PGDATABASE=macrodb
-PGUSER=metrics_readwrite
-PGPASSWORD=please-change
-
-# Usuario read-only (opcional)
-PGUSER_RO=metrics_readonly
-PGPASSWORD_RO=please-change
+### Métricas FX
+```json
+{
+  "inputs": ["mep", "oficial"],
+  "oficial_fx_source": "bcra|datos",
+  "units": "ratio",
+  "mep": 1000,
+  "oficial": 1000
+}
 ```
 
-### Roles de Base de Datos
+### Métricas Monetarias
+```json
+{
+  "inputs": ["leliq", "pases_pasivos", "pases_activos"],
+  "missing_components": [],
+  "leliq": 50000000,
+  "pases_pasivos": 30000000,
+  "pases_activos": 20000000
+}
+```
 
-#### `metrics_readonly`
-- `SELECT` en `series`, `series_points`
-- Para validación y debugging
+### Métricas de Respaldo
+```json
+{
+  "inputs": ["reservas", "base", "pasivos", "oficial"],
+  "oficial_fx_source": "bcra|datos",
+  "units": "ratio",
+  "reservas": 45000,
+  "base_ampliada": 400000000,
+  "oficial": 1000
+}
+```
 
-#### `metrics_readwrite`
-- `SELECT` en `series`, `series_points`
-- `INSERT/UPDATE` en `metrics_points` únicamente
-- **NO** `TRUNCATE/DELETE`
+## Comandos CLI
 
-## Interpretación de Métricas
+### Recomputación de Ventana
+```bash
+# Recomputar últimos 30 días
+pnpm metrics:recompute -- --days 30
 
-### Señales de Alerta
-- **`fx.brecha_*` fuera de [-0.5, 5.0]**: Brecha anormal
-- **`mon.respaldo` < 0**: Reservas insuficientes
-- **`mon.respaldo_real` < 0**: Base ampliada sin respaldo
-- **`flow.delta_reservas` < 0**: Pérdida de reservas
-- **`risk.vol_7d_*` > 0.1**: Alta volatilidad
+# Recomputar últimos 60 días (para delta.base_30d)
+pnpm metrics:recompute -- --days 60
+```
 
-### Contexto Económico
-- **Brechas altas**: Presión cambiaria, expectativas devaluatorias
-- **Respaldo bajo**: Vulnerabilidad monetaria
-- **Flujos negativos**: Contracción monetaria
-- **Volatilidad alta**: Inestabilidad cambiaria
+### Actualización Diaria
+```bash
+# Recomputar últimos 45 días + hoy
+pnpm metrics:update
+```
 
-## Limitaciones v0
+## Endpoints HTTP
 
-- **NO forward-fill**: Datos faltantes = métricas saltadas
-- **NO alineación temporal**: Solo joins por fecha exacta
-- **NO métricas avanzadas**: Solo cálculos básicos
-- **NO UI**: Solo API/CLI (dashboard en otro servicio)
+### Health Check
+```
+GET /api/health
+```
 
-## Próximas Versiones
+Respuesta:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-10-25",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "databases": {
+    "source": true,
+    "target": true
+  }
+}
+```
 
-### v1 (Planeado)
-- Forward-fill inteligente
-- Alineación temporal avanzada
-- Métricas de correlación
-- Alertas automáticas
+### Obtener Métricas Delta
+```
+GET /api/v1/metrics/delta.reserves_7d?limit=10
+GET /api/v1/metrics/delta.base_30d?limit=10
+```
 
-### v2 (Futuro)
-- Machine learning para predicciones
-- Métricas de riesgo avanzadas
-- Integración con dashboards
-- API REST completa
+### Resumen de Métricas
+```
+GET /api/v1/metrics/summary?ids=delta.reserves_7d,delta.base_30d
+```
+
+## Troubleshooting
+
+### Métricas Faltantes
+- **delta.reserves_7d**: Verificar que hay datos de reservas con al menos 7 días de lag
+- **delta.base_30d**: Verificar que hay datos de base monetaria con al menos 30 días de lag
+
+### Logs de Skipped
+- Revisar logs para identificar fechas omitidas y razones
+- Verificar disponibilidad de datos en `series_points`
+
+### Conectividad de Bases de Datos
+- SOURCE DB (ingestor): Puerto 5433, solo lectura
+- TARGET DB (metrics_engine): Puerto 5434, lectura/escritura
