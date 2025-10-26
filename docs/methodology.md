@@ -5,49 +5,35 @@
 ### Primary Sources
 
 #### BCRA (Banco Central de la República Argentina)
-- **API Endpoint**: BCRA Monetarias and Cambiarias APIs
-- **Data Types**: Reserves, monetary base, exchange rates
+- **Data Source**: AWS Aurora RDS (ingestordb)
+- **Data Types**: Reserves, monetary base, exchange rates, LELIQ, pases
 - **Update Schedule**: Daily at ~08:00 ART
-- **Authentication**: API key required
-- **Rate Limits**: 100 requests/hour
+- **Storage**: PostgreSQL with series and series_points tables
+- **Access**: Read-only connection from Metrics Engine
 - **Known Issues**: 
-  - SSL certificate chain issues (520 gateway errors)
-  - Occasional 30-minute delays in data publication
-  - Weekend data may be delayed until Monday
+  - Data may be delayed during weekends
+  - Occasional gaps in series data
 
-#### DolarAPI
-- **API Endpoint**: Real-time exchange rate API
-- **Data Types**: MEP, CCL, and other parallel market rates
-- **Update Schedule**: Real-time during market hours
-- **Authentication**: API key required
-- **Rate Limits**: 1000 requests/day
-- **Known Issues**:
-  - Market hours only (no weekend data)
-  - Occasional API timeouts during high volatility
-
-#### Datos Argentina (Fallback)
-- **API Endpoint**: Government data portal
-- **Data Types**: Official statistics and economic indicators
-- **Update Schedule**: Variable (monthly/quarterly)
-- **Authentication**: Public API
-- **Rate Limits**: 100 requests/hour
-- **Known Issues**:
-  - Less frequent updates
-  - Data may be published with delays
+#### Metrics Engine Processing
+- **Data Source**: Computed from BCRA data
+- **Data Types**: 245+ derived economic metrics
+- **Update Schedule**: Daily at ~08:15 ART
+- **Storage**: AWS Aurora RDS (metricsdb)
+- **Access**: Read-write connection for computed metrics
 
 ### Data Quality Assurance
 
 #### Source Validation
-- **API Health Checks**: Daily monitoring of all endpoints
-- **Data Freshness**: Alert if data is > 2 hours stale
-- **Format Validation**: JSON schema validation for all responses
+- **Database Health Checks**: Daily monitoring of AWS Aurora connections
+- **Data Freshness**: Alert if data is > 48 hours stale
+- **Format Validation**: PostgreSQL data type validation
 - **Range Checks**: Values within expected business ranges
 
-#### Fallback Strategy
-1. **Primary**: BCRA APIs (preferred)
-2. **Secondary**: DolarAPI for exchange rates
-3. **Tertiary**: Datos Argentina for official statistics
-4. **Manual**: CSV upload for critical data gaps
+#### Data Processing Strategy
+1. **Primary**: Read from ingestordb (series and series_points)
+2. **Computation**: Calculate derived metrics using business logic
+3. **Storage**: Write computed metrics to metricsdb
+4. **Validation**: Verify metric consistency and ranges
 
 ## Data Normalization
 

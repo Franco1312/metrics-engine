@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -52,6 +53,67 @@ function createExpressApp(): express.Application {
   app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  app.get('/', (req, res) => {
+    res.json({
+      service: 'Metrics Engine',
+      version: '1.0.0',
+      status: 'running',
+      endpoints: {
+        health: '/api/health',
+        metrics: '/api/v1/metrics',
+        docs: '/api/docs',
+      },
+    });
+  });
+
+  app.get('/api/', (req, res) => {
+    res.json({
+      service: 'Metrics Engine API',
+      version: '1.0.0',
+      status: 'running',
+      endpoints: {
+        health: '/api/health',
+        metrics: '/api/v1/metrics',
+        docs: '/api/docs',
+      },
+    });
+  });
+
+  app.get('/api/metrics/latest', async (req, res) => {
+    try {
+      const { MetricsRepository } = await import('@/infrastructure/db/metricsRepo.js');
+      const metricsRepo = new MetricsRepository();
+
+      const allMetrics = [
+        'ratio.reserves_to_base',
+        'delta.reserves_7d',
+        'delta.base_30d',
+        'fx.brecha_mep',
+        'delta.reserves_5d',
+        'mon.base_ampliada_ars',
+      ];
+
+      const result = await metricsRepo.getLatestMetrics(allMetrics);
+
+      res.json({
+        metrics: result.items,
+        missing: result.missing,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error({
+        event: SERVER.ERROR,
+        msg: 'Failed to get latest metrics',
+        err: error as Error,
+      });
+      res.status(500).json({
+        error: 'Internal server error',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
   app.use('/api/health', healthRoutes);
   app.use('/api', metricsRoutes);
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDefinition));
@@ -61,7 +123,12 @@ function createExpressApp(): express.Application {
   return app;
 }
 
-function handleServerError(err: Error, req: express.Request, res: express.Response, next: express.NextFunction): void {
+function handleServerError(
+  err: Error,
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+): void {
   logger.error({
     event: SERVER.ERROR,
     msg: 'Unhandled server error',

@@ -16,40 +16,43 @@ The **Metrics Engine** is a specialized service that calculates derived economic
 
 ### Key Features
 
-- ✅ **Derived metrics computation** from existing time-series data
-- ✅ **FX gap analysis** (MEP, CCL vs Official)
-- ✅ **Monetary metrics** (base, reserves, coverage ratios)
-- ✅ **Flow metrics** (daily changes, trends)
-- ✅ **Risk metrics** (volatility, stability indicators)
-- ✅ **CLI tools** for backfill and daily updates
-- ✅ **Health monitoring** with database connectivity checks
-- ✅ **Clean Architecture** following ingestor patterns
+- ✅ **245+ Economic Metrics** computed from time-series data
+- ✅ **Monetary Deltas** (base & reserves: 7d, 30d, 90d)
+- ✅ **Monetary Aggregates** (base ampliada, liquidity ratios)
+- ✅ **Peso Backing** (reserves vs base, passives vs reserves)
+- ✅ **FX Volatility & Trends** (USD volatility, moving averages)
+- ✅ **Data Quality Metrics** (freshness, coverage, gaps)
+- ✅ **Modular Use Cases** with descriptive methods
+- ✅ **AWS Aurora RDS** optimized connections
+- ✅ **CLI tools** for computation and monitoring
+- ✅ **Clean Architecture** with separation of concerns
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 20+
-- Docker and Docker Compose
-- Access to INGESTOR database (port 5433)
-- PostgreSQL for METRICS database (port 5434)
+- AWS Aurora RDS access
+- Access to `ingestordb` (series & series_points tables)
+- Access to `metricsdb` (metrics_points table)
 
-### Docker Setup (Recommended)
+### Environment Setup
 
 ```bash
 # Clone repository
 git clone <repository-url>
 cd metrics-engine
 
-# Copy environment configuration
-cp docker.env.example docker.env
+# Install dependencies
+npm install
 
-# Edit docker.env with your database credentials
-# SOURCE_DB_URL=postgresql://user:pass@ingestor_postgres_1:5432/ingestor
-# TARGET_DB_URL=postgresql://metrics_user:metrics_password@metrics-postgres:5432/metrics_engine
-
-# Start all services
-docker-compose up -d
+# Set environment variables
+export NODE_ENV=production
+export SOURCE_DB_URL="postgres://user:pass@hostname:5432/ingestordb"
+export TARGET_DB_URL="postgres://user:pass@hostname:5432/metricsdb"
+# Build and run
+npm run build
+npm start
 
 # Check service health
 curl http://localhost:3000/api/health
@@ -64,9 +67,9 @@ pnpm install
 # Copy environment configuration
 cp docker.env.example .env
 
-# Edit .env with your local database URLs
-# SOURCE_DB_URL=postgresql://user:pass@localhost:5433/ingestor
-# TARGET_DB_URL=postgresql://metrics_user:metrics_password@localhost:5434/metrics_engine
+# Edit .env with your database URLs
+# SOURCE_DB_URL=postgres://username:password@hostname:5432/ingestordb
+# TARGET_DB_URL=postgres://username:password@hostname:5432/metricsdb
 
 # Run database migrations
 pnpm migrate
@@ -80,15 +83,15 @@ pnpm dev
 The service requires two database connections:
 
 - **SOURCE_DB_URL**: Read-only connection to INGESTOR database (contains `series` and `series_points`)
-- **TARGET_DB_URL**: Read-write connection to METRICS database (contains `metrics` and `metrics_points`)
+- **TARGET_DB_URL**: Read-write connection to METRICS database (contains `metrics_points`)
 
 Copy `docker.env.example` to `docker.env` (for Docker) or `.env` (for local development) and configure:
 
 ```bash
 # Required variables
 NODE_ENV=production
-SOURCE_DB_URL=postgresql://user:pass@ingestor_postgres_1:5432/ingestor
-TARGET_DB_URL=postgresql://metrics_user:metrics_password@metrics-postgres:5432/metrics_engine
+SOURCE_DB_URL=postgres://username:password@hostname:5432/ingestordb
+TARGET_DB_URL=postgres://username:password@hostname:5432/metricsdb
 
 # Optional variables
 APP_TIMEZONE=America/Argentina/Buenos_Aires
@@ -176,9 +179,10 @@ All API endpoints include comprehensive input validation using Zod:
 
 ### Core Documentation
 
+- **[Metrics Catalog v2.0](docs/metrics-catalog-v2.md)** - Complete metrics documentation with formulas
+- **[Metrics Summary](docs/metrics-summary.md)** - Quick reference of implemented metrics
 - **[Overview](docs/overview.md)** - Platform overview, data flow, and architecture
 - **[Data Model](docs/data-model.md)** - Complete database schema documentation
-- **[Metrics Catalog](docs/metrics-catalog.md)** - All computed metrics with formulas and interpretation
 - **[Glossary](docs/glossary.md)** - Domain terminology and business definitions
 - **[Methodology](docs/methodology.md)** - Data processing methodology and quality standards
 - **[SQL Cookbook](docs/sql-cookbook.md)** - Ready-to-run SQL queries for data analysis

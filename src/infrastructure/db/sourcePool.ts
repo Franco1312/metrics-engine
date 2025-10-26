@@ -9,9 +9,15 @@ class SourceDatabasePool {
   constructor() {
     this.pool = new Pool({
       connectionString: config.sourceDatabase.url,
-      max: 10,
+      max: 20, // Aumentar para AWS Aurora
+      min: 2, // Mantener conexiones mínimas
       idleTimeoutMillis: config.sourceDatabase.idleTimeoutMillis,
       connectionTimeoutMillis: config.sourceDatabase.connectionTimeoutMillis,
+      keepAlive: true, // Mantener conexiones vivas
+      keepAliveInitialDelayMillis: 10000, // 10 segundos
+      ssl: {
+        rejectUnauthorized: false, // Para AWS Aurora RDS
+      },
     });
 
     this.pool.on('connect', () => {});

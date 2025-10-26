@@ -13,7 +13,6 @@
     "format": "prettier --write \"src/**/*.{ts,js,json}\" \"*.{ts,js,json,cjs,yml,yaml}\" \"eslint.config.js\" \"prettier.config.cjs\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,json}\" \"*.{ts,js,json,cjs,yml,yaml}\" \"eslint.config.js\" \"prettier.config.cjs\"",
     "typecheck": "tsc --noEmit",
-    "migrate": "tsx src/infrastructure/db/migrate.ts",
     "metrics:recompute": "tsx src/interfaces/cli/recompute.ts",
     "metrics:today": "tsx src/interfaces/cli/today.ts"
   },
@@ -30,6 +29,7 @@
     "@types/swagger-ui-express": "^4.1.8",
     "commander": "^11.1.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "pg": "^8.16.3",

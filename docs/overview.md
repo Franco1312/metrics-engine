@@ -6,24 +6,23 @@ The Metrics Engine is a dual-database data platform that computes economic indic
 
 ## Architecture
 
-The platform operates with two independent databases:
+The platform operates with two independent databases on AWS Aurora RDS:
 
-- **SOURCE Database** (Ingestor DB): Contains raw time-series data from official sources
-- **TARGET Database** (Metrics Engine DB): Stores computed metrics and derived indicators
+- **SOURCE Database** (ingestordb): Contains raw time-series data from official sources
+- **TARGET Database** (metricsdb): Stores computed metrics and derived indicators
 
 ## Data Flow
 
 ```mermaid
 graph TD
     A[BCRA/INDEC APIs] --> B[Ingestor Service]
-    B --> C[SOURCE DB<br/>localhost:5433<br/>Database: ingestor]
+    B --> C[SOURCE DB<br/>AWS Aurora RDS<br/>Database: ingestordb]
     C --> D[series.series<br/>Series Catalog]
     C --> E[series.series_points<br/>Raw Time Series]
     
     E --> F[Metrics Engine Service]
-    F --> G[TARGET DB<br/>localhost:5434<br/>Database: metrics_engine]
-    G --> H[metrics.metrics<br/>Metrics Catalog]
-    G --> I[metrics.metrics_points<br/>Computed Metrics]
+    F --> G[TARGET DB<br/>AWS Aurora RDS<br/>Database: metricsdb]
+    G --> H[metrics_points<br/>Computed Metrics]
     
     J[Scheduler<br/>08:15 ART] --> F
     K[CLI Commands] --> F
@@ -38,8 +37,8 @@ graph TD
 
 | Service | Database | Schema | Tables | Responsibility |
 |---------|----------|--------|--------|----------------|
-| **Ingestor** | `ingestor` @ 5433 | `series` | `series`, `series_points` | Raw data ingestion, series catalog |
-| **Metrics Engine** | `metrics_engine` @ 5434 | `metrics` | `metrics`, `metrics_points` | Metric computation, derived indicators |
+| **Ingestor** | `ingestordb` @ AWS Aurora | `series` | `series`, `series_points` | Raw data ingestion, series catalog |
+| **Metrics Engine** | `metricsdb` @ AWS Aurora | `public` | `metrics_points` | Metric computation, derived indicators |
 
 ## Timezone Policy
 

@@ -27,7 +27,7 @@ export class TargetMetricsRepositoryImpl implements TargetMetricsRepository {
       .join(', ');
 
     const query = `
-      INSERT INTO metrics.metrics_points (metric_id, ts, value, metadata)
+      INSERT INTO metrics_points (metric_id, ts, value, metadata)
       VALUES ${values}
       ON CONFLICT (metric_id, ts) 
       DO UPDATE SET 
@@ -53,7 +53,7 @@ export class TargetMetricsRepositoryImpl implements TargetMetricsRepository {
   ): Promise<MetricsPoint[]> {
     const query = `
       SELECT metric_id, ts, value, metadata
-      FROM metrics.metrics_points 
+      FROM metrics_points 
       WHERE metric_id = $1 
         AND ts >= $2 
         AND ts <= $3 
