@@ -17,11 +17,9 @@ program
         msg: 'Starting today metrics computation',
         data: {
           nodeEnv: process.env.NODE_ENV,
-          sourceDbUrl: config.sourceDatabase.url ? 'configured' : 'not configured',
-          targetDbUrl: config.targetDatabase.url ? 'configured' : 'not configured',
         },
       });
-      
+
       const useCase = new DualComputeMetricsUseCase();
       await useCase.computeToday();
       process.exit(0);

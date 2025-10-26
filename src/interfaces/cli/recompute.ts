@@ -18,12 +18,10 @@ program
         msg: 'Starting metrics recomputation',
         data: {
           nodeEnv: process.env.NODE_ENV,
-          sourceDbUrl: config.sourceDatabase.url ? 'configured' : 'not configured',
-          targetDbUrl: config.targetDatabase.url ? 'configured' : 'not configured',
           days: options.days,
         },
       });
-      
+
       const useCase = new DualComputeMetricsUseCase();
       await useCase.recomputeRecentWindow(parseInt(options.days, 10));
       process.exit(0);

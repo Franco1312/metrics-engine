@@ -21,7 +21,5 @@ export interface AppConfig {
 }
 
 export interface EnvironmentConfig {
-  sourceDatabase: DatabaseConfig;
-  targetDatabase: DatabaseConfig;
   app: AppConfig;
 }

@@ -1,5 +1,4 @@
 import { Pool } from 'pg';
-import { config } from '@/infrastructure/config/index.js';
 import { logger } from '@/infrastructure/log/logger.js';
 import { DATABASE } from '@/infrastructure/log/log-events.js';
 
@@ -8,11 +7,11 @@ class SourceDatabasePool {
 
   constructor() {
     this.pool = new Pool({
-      connectionString: config.sourceDatabase.url,
+      connectionString: process.env.SOURCE_DB_URL!,
       max: 20, // Aumentar para AWS Aurora
       min: 2, // Mantener conexiones mínimas
-      idleTimeoutMillis: config.sourceDatabase.idleTimeoutMillis,
-      connectionTimeoutMillis: config.sourceDatabase.connectionTimeoutMillis,
+      idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10),
+      connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '2000', 10),
       keepAlive: true, // Mantener conexiones vivas
       keepAliveInitialDelayMillis: 10000, // 10 segundos
       ssl: {

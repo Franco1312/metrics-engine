@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsup src/**/*.ts --format esm --dts",
-    "start": "node dist/index.js",
+    "start": "node -r dotenv/config dist/index.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,js,json}\" \"*.{ts,js,json,cjs,yml,yaml}\" \"eslint.config.js\" \"prettier.config.cjs\"",

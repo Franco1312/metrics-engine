@@ -2,7 +2,11 @@ import { Request, Response } from 'express';
 import { MetricsService } from './metrics.service.js';
 import { logger } from '@/infrastructure/log/logger.js';
 import { SERVER } from '@/infrastructure/log/log-events.js';
-import { GetMetricPointsSchema, GetLatestMetricsSchema } from './metrics.validation.js';
+import {
+  GetMetricPointsSchema,
+  GetLatestMetricsSchema,
+  GetMetricsListSchema,
+} from './metrics.validation.js';
 
 export class MetricsController {
   constructor(private metricsService: MetricsService) {}
@@ -63,6 +67,7 @@ export class MetricsController {
       res.json({
         items: result.items,
         missing: result.missing,
+        summary: result.summary,
       });
     } catch (error) {
       logger.error({
@@ -70,6 +75,29 @@ export class MetricsController {
         msg: 'Failed to get latest metrics',
         err: error as Error,
         data: { ids: req.query.ids },
+      });
+
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  async getMetricsList(req: Request, res: Response): Promise<void> {
+    try {
+      const validatedData = GetMetricsListSchema.parse(req.query);
+      const metrics = await this.metricsService.getMetricsList({
+        id: validatedData.id,
+      });
+
+      res.json({
+        metrics,
+        count: metrics.length,
+      });
+    } catch (error) {
+      logger.error({
+        event: SERVER.ERROR,
+        msg: 'Failed to get metrics list',
+        err: error as Error,
+        data: { query: req.query },
       });
 
       res.status(500).json({ error: 'Internal server error' });

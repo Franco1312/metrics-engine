@@ -52,7 +52,7 @@ export class MetricsRepository {
 
     const query = `
       SELECT metric_id, ts, value, metadata, created_at, updated_at
-      FROM metrics.metrics_points
+      FROM metrics_points
       WHERE ${whereClause}
       ORDER BY ts DESC
       ${limitClause}
@@ -79,7 +79,7 @@ export class MetricsRepository {
     const placeholders = metricIds.map((_, index) => `$${index + 1}`).join(',');
     const query = `
       SELECT DISTINCT ON (metric_id) metric_id, ts, value, metadata
-      FROM metrics.metrics_points
+      FROM metrics_points
       WHERE metric_id IN (${placeholders})
       ORDER BY metric_id, ts DESC
     `;
@@ -94,7 +94,7 @@ export class MetricsRepository {
   }
 
   async metricExists(metricId: string): Promise<boolean> {
-    const query = 'SELECT 1 FROM metrics.metrics WHERE id = $1 LIMIT 1';
+    const query = 'SELECT 1 FROM metrics_points WHERE metric_id = $1 LIMIT 1';
     const result = await targetDb.query(query, [metricId]);
     return result.rows.length > 0;
   }

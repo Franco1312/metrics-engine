@@ -10,8 +10,8 @@ const swaggerDefinition: SwaggerDefinition = {
   openapi: '3.0.0',
   info: {
     title: 'Metrics Engine API',
-    version: '1.0.0',
-    description: 'API for accessing computed financial metrics',
+    version: '2.0.0',
+    description: 'API for accessing computed financial metrics with dynamic definitions from database',
     contact: {
       name: 'Metrics Engine Team',
     },
@@ -101,8 +101,116 @@ const swaggerDefinition: SwaggerDefinition = {
             },
             description: 'Metric IDs that were not found',
           },
+          summary: {
+            type: 'object',
+            properties: {
+              total_requested: {
+                type: 'integer',
+                description: 'Total number of metrics requested',
+              },
+              found: {
+                type: 'integer',
+                description: 'Number of metrics found',
+              },
+              missing: {
+                type: 'integer',
+                description: 'Number of metrics missing',
+              },
+              by_category: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    category: {
+                      type: 'string',
+                      example: 'deltas',
+                    },
+                    count: {
+                      type: 'integer',
+                      example: 5,
+                    },
+                    metrics: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string' },
+                          name: { type: 'string' },
+                          value: { type: 'number' },
+                          ts: { type: 'string' },
+                          unit: { type: 'string' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
         required: ['items', 'missing'],
+      },
+      MetricDefinition: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description: 'Metric identifier',
+            example: 'delta.base_7d.abs',
+          },
+          name: {
+            type: 'string',
+            description: 'Human-readable metric name',
+            example: 'Delta Base Monetaria 7d (Absoluto)',
+          },
+          category: {
+            type: 'string',
+            description: 'Metric category',
+            example: 'deltas',
+            enum: ['deltas', 'monetary', 'ratios', 'fx', 'data_health'],
+          },
+          description: {
+            type: 'string',
+            description: 'Detailed metric description',
+            example: 'Cambio absoluto de base monetaria en 7 días hábiles',
+          },
+          unit: {
+            type: 'string',
+            description: 'Unit of measurement',
+            example: 'ARS',
+          },
+          formula: {
+            type: 'string',
+            description: 'Mathematical formula used to calculate the metric',
+            example: 'BASE[t] - BASE[t-7_business_days]',
+          },
+          dependencies: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            description: 'Series IDs that this metric depends on',
+            example: ['15'],
+          },
+        },
+        required: ['id', 'name', 'category', 'description', 'unit', 'dependencies'],
+      },
+      MetricsListResponse: {
+        type: 'object',
+        properties: {
+          metrics: {
+            type: 'array',
+            items: {
+              $ref: '#/components/schemas/MetricDefinition',
+            },
+          },
+          count: {
+            type: 'integer',
+            description: 'Number of metrics returned',
+            example: 21,
+          },
+        },
+        required: ['metrics', 'count'],
       },
       ErrorResponse: {
         type: 'object',
@@ -133,6 +241,57 @@ const swaggerDefinition: SwaggerDefinition = {
     },
   },
   paths: {
+    '/api/v1/metrics': {
+      get: {
+        tags: ['Metrics'],
+        summary: 'Get metrics definitions',
+        description: 'Retrieve all available metrics definitions or a specific one by ID',
+        parameters: [
+          {
+            name: 'id',
+            in: 'query',
+            required: false,
+            schema: {
+              type: 'string',
+            },
+            description: 'Specific metric ID to retrieve (optional)',
+            example: 'delta.base_7d.abs',
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Metrics definitions retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/MetricsListResponse',
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+              },
+            },
+          },
+          '500': {
+            description: 'Internal server error',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/ErrorResponse',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     '/api/health': {
       get: {
         tags: ['Health'],

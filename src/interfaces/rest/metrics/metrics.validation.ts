@@ -20,5 +20,10 @@ export const GetLatestMetricsSchema = z.object({
   ids: z.string().min(1, 'ids parameter is required'),
 });
 
+export const GetMetricsListSchema = z.object({
+  id: z.string().optional(),
+});
+
 export type GetMetricPointsRequest = z.infer<typeof GetMetricPointsSchema>;
 export type GetLatestMetricsRequest = z.infer<typeof GetLatestMetricsSchema>;
+export type GetMetricsListRequest = z.infer<typeof GetMetricsListSchema>;
